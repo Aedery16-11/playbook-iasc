@@ -1,0 +1,54 @@
+#Pour générer la clé ssh
+- name: Génération clé SSH et déploiement EC2
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  vars:
+    ssh_key_name: my_ansible_key
+    ssh_key_path: ssh_keys/my_ansible_key
+    region: eu-west-3
+
+
+  tasks:
+    - name: Préparer répertoire des clés
+      file:
+        path: ssh_keys
+        state: directory
+        mode: '0700'
+
+    - name: Générer la paire de clés SSH
+      openssh_keypair:
+        path: "{{ ssh_key_path }}"
+        type: rsa
+        size: 2048
+        mode: '0600'
+      register: keypair_result
+
+    - name: Enregistrer la clé publique dans AWS
+      amazon.aws.ec2_key:
+        name: "{{ ssh_key_name }}"
+        key_material: "{{ keypair_result.public_key }}"
+        region: "{{ region }}"
+
+
+- name: Configuration du nouvel utilisateur
+  hosts: 13.37.249.148
+  become: yes
+  vars:
+    public_key_path: "ssh_keys/my_ansible_key.pub"
+
+  tasks:
+    - name: Add a new user
+      ansible.builtin.user:
+        name: "Michel"
+        password: "$1$zSccwVKu$1xcdYljNpkbVOz8rJpos6."
+        state: present
+        shell: /bin/bash
+        groups: "sudo"
+        create_home: yes
+
+    - name: Déployer la clé SSH publique pour Michel
+      ansible.posix.authorized_key:
+        user: "Michel"
+        state: present
+        key: "{{ lookup('file', public_key_path) }}"
