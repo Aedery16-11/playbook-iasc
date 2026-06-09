@@ -41,7 +41,6 @@
     - name: Add a new user
       ansible.builtin.user:
         name: "Michel"
-        password: "$1$zSccwVKu$1xcdYljNpkbVOz8rJpos6."
         state: present
         shell: /bin/bash
         groups: "sudo"
